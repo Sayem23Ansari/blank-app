@@ -1,5 +1,6 @@
 streamlit
-transformers
 torch
-pillow
+transformers
+scikit-learn
 matplotlib
+Pillow
