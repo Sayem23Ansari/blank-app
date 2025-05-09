@@ -9,6 +9,9 @@ import string
 import re
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
+# ✅ Set Streamlit page config FIRST
+st.set_page_config(page_title="VQA: BLIP vs ViLT", layout="wide")
+
 # Load models
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -24,14 +27,10 @@ blip_processor, blip_model, vilt_processor, vilt_model = load_models()
 
 # Utility Functions
 def normalize_answer(s):
-    def remove_articles(text):
-        return re.sub(r'\b(a|an|the)\b', ' ', text)
-    def remove_punctuation(text):
-        return text.translate(str.maketrans('', '', string.punctuation))
-    def white_space_fix(text):
-        return ' '.join(text.split())
-    def lower(text):
-        return text.lower()
+    def remove_articles(text): return re.sub(r'\b(a|an|the)\b', ' ', text)
+    def remove_punctuation(text): return text.translate(str.maketrans('', '', string.punctuation))
+    def white_space_fix(text): return ' '.join(text.split())
+    def lower(text): return text.lower()
     return white_space_fix(remove_articles(remove_punctuation(lower(s))))
 
 def get_blip_answer(image, question):
@@ -90,20 +89,19 @@ def calc_metrics(name, y_true, y_pred):
     st.write(f"**F1 Score**: {f1:.2f}")
 
 # Streamlit UI
-st.set_page_config(page_title="VQA: BLIP vs ViLT", layout="wide")
 st.title("🔍 Visual Question Answering: BLIP vs ViLT")
 
-uploaded_file = st.file_uploader("📷 Upload an Image", type=["jpg", "jpeg", "png"])
-question = st.text_input("💬 Enter your question:")
-selected_model = st.selectbox("🧠 Choose a model", ["BLIP", "ViLT", "Both", "Ensemble"])
+uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "png"])
+question = st.text_input("Enter your question:")
+selected_model = st.selectbox("Choose a model", ["BLIP", "ViLT", "Both", "Ensemble"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-if st.button("🔎 Submit"):
+if st.button("Submit"):
     if uploaded_file is None or not question.strip():
-        st.warning("⚠️ Please upload an image and enter a question.")
+        st.warning("Please upload an image and enter a question.")
     else:
         blip_answer = vilt_answer = true_answer = None
         blip_preds = vilt_preds = []
@@ -124,19 +122,16 @@ if st.button("🔎 Submit"):
         else:
             true_answer = generate_true_answer(question, blip_answer or "", vilt_answer or "")
 
+        # Normalize for evaluation
         true_answers = [normalize_answer(true_answer)]
-        if blip_answer:
-            blip_preds = [normalize_answer(blip_answer)]
-        if vilt_answer:
-            vilt_preds = [normalize_answer(vilt_answer)]
+        if blip_answer: blip_preds = [normalize_answer(blip_answer)]
+        if vilt_answer: vilt_preds = [normalize_answer(vilt_answer)]
 
         if selected_model == "Ensemble":
             ensemble_pred = [normalize_answer(ensemble_answer(blip_answer or "", vilt_answer or ""))]
             st.success(f"⚫ **Ensemble Answer:** {ensemble_pred[0]}")
 
-        if blip_preds:
-            calc_metrics("BLIP", true_answers, blip_preds)
-        if vilt_preds:
-            calc_metrics("ViLT", true_answers, vilt_preds)
+        if blip_preds: calc_metrics("BLIP", true_answers, blip_preds)
+        if vilt_preds: calc_metrics("ViLT", true_answers, vilt_preds)
         if selected_model == "Ensemble":
             calc_metrics("Ensemble", true_answers, ensemble_pred)
